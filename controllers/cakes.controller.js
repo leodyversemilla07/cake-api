@@ -19,6 +19,23 @@ exports.getCakeById = (req, res) => {
     });
 };
 
+exports.searchCakes = (req, res) => {
+    const { q } = req.query;
+
+    if (!q) {
+        return res.status(400).json({ status: 400, success: false, error: 'Query parameter "q" is required' });
+    }
+
+    const sql = "SELECT * FROM cakes WHERE name LIKE ? OR flavor LIKE ?";
+    const searchTerm = `%${q}%`;
+
+    db.all(sql, [searchTerm, searchTerm], (err, rows) => {
+        if (err) return res.status(500).json({ status: 500, success: false, error: err.message });
+        if (rows.length < 1) return res.status(404).json({ status: 404, success: false, error: 'No cakes found matching your search' });
+        return res.status(200).json({ status: 200, success: true, data: rows });
+    });
+};
+
 exports.createCake = (req, res) => {
     const { name, description, flavor, price, is_available } = req.body;
 
