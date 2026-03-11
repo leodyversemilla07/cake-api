@@ -3,13 +3,25 @@ const cors = require('cors');
 const cakesRoutes = require('./routes/cakes.routes');
 
 const app = express();
-const PORT = 3000;
+const PORT = Number(process.env.PORT) || 3000;
 
 app.use(cors());
 app.use(express.json());
 
+app.get('/health', (req, res) => {
+    res.status(200).json({
+        status: 200,
+        success: true,
+        data: { service: 'cake-api', uptime: process.uptime() }
+    });
+});
+
 // Routes
 app.use('/cake', cakesRoutes);
+
+app.use((req, res) => {
+    res.status(404).json({ status: 404, success: false, error: 'Route not found' });
+});
 
 // Error handling middleware
 app.use((err, req, res, next) => {

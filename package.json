@@ -1,9 +1,10 @@
 {
   "name": "cake-api",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "A lightweight REST API for managing cakes with Express and SQLite.",
+  "main": "app.js",
   "scripts": {
+    "start": "node app.js",
     "test": "jest"
   },
   "keywords": [],
@@ -11,10 +12,8 @@
   "license": "ISC",
   "type": "commonjs",
   "dependencies": {
-    "body-parser": "^2.2.1",
     "cors": "^2.8.5",
-    "express": "^5.2.1",
-    "sqlite3": "^5.1.7"
+    "express": "^5.2.1"
   },
   "devDependencies": {
     "jest": "^30.2.0",

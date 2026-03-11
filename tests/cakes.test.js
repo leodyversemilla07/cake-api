@@ -19,20 +19,12 @@ const getQuery = (query, params = []) => {
             resolve(row);
         });
     });
-}
+};
 
 describe('Cakes API', () => {
 
     beforeAll(async () => {
-        // Create the cakes table before running tests
-        await runQuery(`CREATE TABLE IF NOT EXISTS cakes (
-            id INTEGER PRIMARY KEY AUTOINCREMENT,
-            name TEXT NOT NULL,
-            description TEXT NOT NULL,
-            flavor TEXT NOT NULL,
-            price REAL NOT NULL,
-            is_available BOOLEAN NOT NULL
-        );`);
+        await runQuery(db.createTableSql);
     });
 
 
@@ -69,6 +61,7 @@ describe('Cakes API', () => {
             expect(res.statusCode).toEqual(201);
             expect(res.body.success).toBe(true);
             expect(res.body.data).toHaveProperty('id');
+            expect(res.body.data.is_available).toBe(true);
 
             // Verify the cake was actually inserted into the DB
             const cakeInDb = await getQuery("SELECT * FROM cakes WHERE id = ?", [res.body.data.id]);
@@ -82,6 +75,21 @@ describe('Cakes API', () => {
 
             expect(res.statusCode).toEqual(400);
             expect(res.body.success).toBe(false);
+        });
+
+        test('should fail when price is negative', async () => {
+            const res = await request(app)
+                .post('/cake')
+                .send({
+                    name: 'Invalid Cake',
+                    description: 'Bad data',
+                    flavor: 'Chocolate',
+                    price: -1,
+                    is_available: true
+                });
+
+            expect(res.statusCode).toEqual(400);
+            expect(res.body.error).toContain('Price must be a non-negative number');
         });
     });
 
@@ -97,13 +105,14 @@ describe('Cakes API', () => {
             expect(Array.isArray(res.body.data)).toBe(true);
             expect(res.body.data.length).toBe(1);
             expect(res.body.data[0].name).toBe('Chocolate Cake');
+            expect(res.body.data[0].is_available).toBe(true);
         });
 
-        test('should return 404 if no cakes are found', async () => {
+        test('should return an empty list if no cakes are found', async () => {
             const res = await request(app).get('/cake');
-            expect(res.statusCode).toEqual(404);
-            expect(res.body.success).toBe(false);
-            expect(res.body.error).toBe('No cakes found');
+            expect(res.statusCode).toEqual(200);
+            expect(res.body.success).toBe(true);
+            expect(res.body.data).toEqual([]);
         });
     });
 
@@ -124,6 +133,12 @@ describe('Cakes API', () => {
             const res = await request(app).get('/cake/999999');
             expect(res.statusCode).toEqual(404);
             expect(res.body.success).toBe(false);
+        });
+
+        test('should validate that id is numeric', async () => {
+            const res = await request(app).get('/cake/not-a-number');
+            expect(res.statusCode).toEqual(400);
+            expect(res.body.error).toBe('Cake id must be a positive integer');
         });
     });
 
@@ -154,16 +169,24 @@ describe('Cakes API', () => {
             expect(res.body.data[0].flavor).toBe('Vanilla');
         });
 
-        test('should return 404 for no matching cakes', async () => {
+        test('should return an empty list for no matching cakes', async () => {
             const res = await request(app).get('/cake/search?q=nonexistent');
-            expect(res.statusCode).toEqual(404);
-            expect(res.body.success).toBe(false);
+            expect(res.statusCode).toEqual(200);
+            expect(res.body.success).toBe(true);
+            expect(res.body.data).toEqual([]);
         });
 
         test('should return 400 if query parameter is missing', async () => {
             const res = await request(app).get('/cake/search');
             expect(res.statusCode).toEqual(400);
             expect(res.body.success).toBe(false);
+        });
+
+        test('should search the description field', async () => {
+            const res = await request(app).get('/cake/search?q=nutty');
+            expect(res.statusCode).toEqual(200);
+            expect(res.body.data).toHaveLength(1);
+            expect(res.body.data[0].name).toBe('Carrot Cake');
         });
     });
 
@@ -189,6 +212,19 @@ describe('Cakes API', () => {
             const res = await request(app).patch('/cake/999999').send({ price: 10 });
             expect(res.statusCode).toEqual(404);
         });
+
+        test('should reject invalid boolean updates', async () => {
+            const result = await runQuery("INSERT INTO cakes (name, description, flavor, price, is_available) VALUES (?, ?, ?, ?, ?)",
+                ['Lemon Tart', 'Zesty and refreshing', 'Lemon', 18.00, true]);
+            const cakeId = result.lastID;
+
+            const res = await request(app)
+                .patch(`/cake/${cakeId}`)
+                .send({ is_available: 'yes' });
+
+            expect(res.statusCode).toEqual(400);
+            expect(res.body.error).toContain('is_available must be a boolean');
+        });
     });
 
     describe('DELETE /cake/:id', () => {
@@ -209,6 +245,21 @@ describe('Cakes API', () => {
         test('should return 404 for non-existent cake', async () => {
             const res = await request(app).delete('/cake/999999');
             expect(res.statusCode).toEqual(404);
+        });
+    });
+
+    describe('Misc routes', () => {
+        test('should expose a health endpoint', async () => {
+            const res = await request(app).get('/health');
+            expect(res.statusCode).toEqual(200);
+            expect(res.body.success).toBe(true);
+            expect(res.body.data.service).toBe('cake-api');
+        });
+
+        test('should return a JSON 404 for unknown routes', async () => {
+            const res = await request(app).get('/missing');
+            expect(res.statusCode).toEqual(404);
+            expect(res.body.error).toBe('Route not found');
         });
     });
 });

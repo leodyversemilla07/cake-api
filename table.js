@@ -1,15 +1,12 @@
-const sqlite = require('sqlite3').verbose();
-const db = new sqlite.Database('./cakes.db', sqlite.OPEN_READWRITE, (err) => {
-    if (err) return console.error(err);
+const db = require('./db');
+
+db.run(db.createTableSql, (err) => {
+    if (err) {
+        console.error('Could not create cakes table', err);
+        process.exitCode = 1;
+        return;
+    }
+
+    console.log('Cakes table is ready');
+    db.close();
 });
-
-const sql = `CREATE TABLE IF NOT EXISTS cakes (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    name TEXT NOT NULL,
-    description TEXT NOT NULL,
-    flavor TEXT NOT NULL,
-    price REAL NOT NULL,
-    is_available BOOLEAN NOT NULL
-);`;
-
-db.run(sql);
