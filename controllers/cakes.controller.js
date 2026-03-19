@@ -1,4 +1,5 @@
 const db = require('../db');
+const { z } = require('zod');
 
 const mapCakeRow = (row) => ({
     ...row,
@@ -8,79 +9,31 @@ const mapCakeRow = (row) => ({
 const sendValidationError = (res, message) =>
     res.status(400).json({ status: 400, success: false, error: message });
 
-const normalizeTextField = (value) => {
-    if (typeof value !== 'string') {
-        return null;
-    }
-
-    const trimmed = value.trim();
-    return trimmed.length > 0 ? trimmed : null;
-};
-
 const parseCakeId = (id) => {
     const parsedId = Number.parseInt(id, 10);
     return Number.isInteger(parsedId) && parsedId > 0 ? parsedId : null;
 };
 
-const validateCakePayload = (payload, { partial = false } = {}) => {
-    const errors = [];
-    const normalized = {};
-    const requiredFields = ['name', 'description', 'flavor', 'price', 'is_available'];
+// Zod schemas for validation
+const cakeSchema = z.object({
+    name: z.string().trim().min(1, 'Name must be a non-empty string'),
+    description: z.string().trim().min(1, 'Description must be a non-empty string'),
+    flavor: z.string().trim().min(1, 'Flavor must be a non-empty string'),
+    price: z.number().min(0, 'Price must be a non-negative number'),
+    is_available: z.boolean({ invalid_type_error: 'is_available must be a boolean' })
+});
 
-    if (!partial) {
-        const missingFields = requiredFields.filter((field) => payload[field] === undefined);
-        if (missingFields.length > 0) {
-            errors.push(`Missing required fields: ${missingFields.join(', ')}`);
-        }
-    }
-
-    if (payload.name !== undefined) {
-        normalized.name = normalizeTextField(payload.name);
-        if (!normalized.name) {
-            errors.push('Name must be a non-empty string');
-        }
-    }
-
-    if (payload.description !== undefined) {
-        normalized.description = normalizeTextField(payload.description);
-        if (!normalized.description) {
-            errors.push('Description must be a non-empty string');
-        }
-    }
-
-    if (payload.flavor !== undefined) {
-        normalized.flavor = normalizeTextField(payload.flavor);
-        if (!normalized.flavor) {
-            errors.push('Flavor must be a non-empty string');
-        }
-    }
-
-    if (payload.price !== undefined) {
-        if (typeof payload.price !== 'number' || !Number.isFinite(payload.price) || payload.price < 0) {
-            errors.push('Price must be a non-negative number');
-        } else {
-            normalized.price = payload.price;
-        }
-    }
-
-    if (payload.is_available !== undefined) {
-        if (typeof payload.is_available !== 'boolean') {
-            errors.push('is_available must be a boolean');
-        } else {
-            normalized.is_available = payload.is_available ? 1 : 0;
-        }
-    }
-
-    if (partial && Object.keys(normalized).length === 0) {
-        errors.push('At least one valid field is required');
-    }
-
-    return { errors, value: normalized };
-};
+const partialCakeSchema = cakeSchema.partial().refine(
+    (data) => Object.keys(data).length > 0,
+    { message: 'At least one valid field is required' }
+);
 
 exports.getAllCakes = (req, res) => {
-    const sql = 'SELECT * FROM cakes ORDER BY id ASC';
-    db.all(sql, [], (err, rows) => {
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const offset = parseInt(req.query.offset, 10) || 0;
+
+    const sql = 'SELECT * FROM cakes ORDER BY id ASC LIMIT ? OFFSET ?';
+    db.all(sql, [limit, offset], (err, rows) => {
         if (err) return res.status(500).json({ status: 500, success: false, error: err.message });
         return res.status(200).json({ status: 200, success: true, data: rows.map(mapCakeRow) });
     });
@@ -107,24 +60,30 @@ exports.searchCakes = (req, res) => {
         return sendValidationError(res, 'Query parameter "q" is required');
     }
 
-    const sql = 'SELECT * FROM cakes WHERE name LIKE ? OR flavor LIKE ? OR description LIKE ? ORDER BY id ASC';
+    const limit = parseInt(req.query.limit, 10) || 10;
+    const offset = parseInt(req.query.offset, 10) || 0;
+
+    const sql = 'SELECT * FROM cakes WHERE name LIKE ? OR flavor LIKE ? OR description LIKE ? ORDER BY id ASC LIMIT ? OFFSET ?';
     const searchTerm = `%${q}%`;
 
-    db.all(sql, [searchTerm, searchTerm, searchTerm], (err, rows) => {
+    db.all(sql, [searchTerm, searchTerm, searchTerm, limit, offset], (err, rows) => {
         if (err) return res.status(500).json({ status: 500, success: false, error: err.message });
         return res.status(200).json({ status: 200, success: true, data: rows.map(mapCakeRow) });
     });
 };
 
 exports.createCake = (req, res) => {
-    const validation = validateCakePayload(req.body);
-    if (validation.errors.length > 0) {
-        return sendValidationError(res, validation.errors.join('; '));
+    const parsed = cakeSchema.safeParse(req.body);
+    if (!parsed.success) {
+        const errors = parsed.error.issues.map(e => e.message);
+        return sendValidationError(res, errors.join('; '));
     }
 
-    const { name, description, flavor, price, is_available } = validation.value;
+    const { name, description, flavor, price, is_available } = parsed.data;
+    const isAvailableInt = is_available ? 1 : 0;
+    
     const sql = 'INSERT INTO cakes(name, description, flavor, price, is_available) VALUES (?, ?, ?, ?, ?)';
-    db.run(sql, [name, description, flavor, price, is_available], function (err) {
+    db.run(sql, [name, description, flavor, price, isAvailableInt], function (err) {
         if (err) {
             console.error(err);
             return res.status(500).json({ status: 500, success: false, error: err.message });
@@ -146,12 +105,15 @@ exports.updateCake = (req, res) => {
         return sendValidationError(res, 'Cake id must be a positive integer');
     }
 
-    const validation = validateCakePayload(req.body, { partial: true });
-    if (validation.errors.length > 0) {
-        return sendValidationError(res, validation.errors.join('; '));
+    const parsed = partialCakeSchema.safeParse(req.body);
+    if (!parsed.success) {
+        const errors = parsed.error.issues.map(e => e.message);
+        return sendValidationError(res, errors.join('; '));
     }
 
-    const { name, description, flavor, price, is_available } = validation.value;
+    const { name, description, flavor, price, is_available } = parsed.data;
+    const isAvailableInt = is_available !== undefined ? (is_available ? 1 : 0) : undefined;
+    
     const sql = `UPDATE cakes SET
         name = COALESCE(?, name),
         description = COALESCE(?, description),
@@ -160,7 +122,7 @@ exports.updateCake = (req, res) => {
         is_available = COALESCE(?, is_available)
         WHERE id = ?`;
 
-    db.run(sql, [name, description, flavor, price, is_available, cakeId], function (err) {
+    db.run(sql, [name, description, flavor, price, isAvailableInt, cakeId], function (err) {
         if (err) return res.status(500).json({ status: 500, success: false, error: err.message });
         if (this.changes < 1) return res.status(404).json({ status: 404, success: false, error: 'Cake not found' });
 

@@ -223,7 +223,7 @@ describe('Cakes API', () => {
                 .send({ is_available: 'yes' });
 
             expect(res.statusCode).toEqual(400);
-            expect(res.body.error).toContain('is_available must be a boolean');
+            expect(res.body.error).toContain('expected boolean');
         });
     });
 

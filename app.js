@@ -1,9 +1,24 @@
 const express = require('express');
 const cors = require('cors');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./swagger');
 const cakesRoutes = require('./routes/cakes.routes');
 
 const app = express();
 const PORT = Number(process.env.PORT) || 3000;
+
+// Security and Rate Limiting
+app.use(helmet({ contentSecurityPolicy: false })); // Disabled CSP to allow Swagger UI scripts
+
+const limiter = rateLimit({
+    windowMs: 15 * 60 * 1000, // 15 minutes
+    max: 100, // limit each IP to 100 requests per windowMs
+    standardHeaders: true,
+    legacyHeaders: false,
+});
+app.use(limiter);
 
 app.use(cors());
 app.use(express.json());
@@ -17,6 +32,7 @@ app.get('/health', (req, res) => {
 });
 
 // Routes
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use('/cake', cakesRoutes);
 
 app.use((req, res) => {
