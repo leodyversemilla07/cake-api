@@ -2,9 +2,13 @@
   "name": "cake-api",
   "version": "1.0.0",
   "description": "A lightweight REST API for managing cakes with Express and SQLite.",
-  "main": "src/app.js",
+  "main": "dist/src/app.js",
   "scripts": {
-    "start": "node src/app.js",
+    "start": "tsx src/app.ts",
+    "start:prod": "node dist/src/app.js",
+    "build": "tsc -p tsconfig.json",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "db:init": "tsx src/table.ts",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "biome check .",
@@ -38,7 +42,16 @@
   },
   "devDependencies": {
     "@biomejs/biome": "^2.4.11",
+    "@types/cors": "^2.8.19",
+    "@types/express": "^5.0.6",
+    "@types/morgan": "^1.9.10",
+    "@types/node": "^25.6.0",
+    "@types/supertest": "^7.2.0",
+    "@types/swagger-jsdoc": "^6.0.4",
+    "@types/swagger-ui-express": "^4.1.8",
     "supertest": "^7.1.4",
+    "tsx": "^4.21.0",
+    "typescript": "^6.0.2",
     "vitest": "^4.1.4"
   }
 }

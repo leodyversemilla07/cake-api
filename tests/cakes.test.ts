@@ -1,22 +1,22 @@
-const request = require('supertest');
-const app = require('../src/app');
-const db = require('../src/db');
+import request from 'supertest';
+import app from '../src/app';
+import db from '../src/db';
 
 // Helper function to run database queries within tests
-const runQuery = (query, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.run(query, params, function (err) {
+const runQuery = (query: string, params: unknown[] = []) => {
+  return new Promise<{ lastID?: number; changes: number }>((resolve, reject) => {
+    db.run(query, params as never[], function (this: { lastID?: number; changes: number }, err: Error | null) {
       if (err) reject(err);
       resolve(this);
     });
   });
 };
 
-const getQuery = (query, params = []) => {
-  return new Promise((resolve, reject) => {
-    db.get(query, params, (err, row) => {
+const getQuery = <T = Record<string, unknown>>(query: string, params: unknown[] = []) => {
+  return new Promise<T>((resolve, reject) => {
+    db.get(query, params as never[], (err: Error | null, row?: T) => {
       if (err) reject(err);
-      resolve(row);
+      resolve(row as T);
     });
   });
 };
@@ -32,7 +32,7 @@ describe('Cakes API', () => {
   });
 
   afterAll(async () => {
-    await new Promise((resolve, reject) => {
+    await new Promise<void>((resolve, reject) => {
       db.close((err) => {
         if (err) {
           console.error(err.message);
@@ -225,7 +225,7 @@ describe('Cakes API', () => {
       const res = await request(app).patch(`/cake/${cakeId}`).send({ is_available: 'yes' });
 
       expect(res.statusCode).toEqual(400);
-      expect(res.body.error).toContain('expected boolean');
+      expect(res.body.error).toContain('is_available must be a boolean');
     });
   });
 

@@ -1,6 +1,7 @@
-const express = require('express');
+import express from 'express';
+import cakesController from '../controllers/cakes.controller';
+
 const router = express.Router();
-const cakesController = require('../controllers/cakes.controller');
 
 /**
  * @swagger
@@ -199,4 +200,4 @@ router.patch('/:id', cakesController.updateCake);
  */
 router.delete('/:id', cakesController.deleteCake);
 
-module.exports = router;
+export default router;
