@@ -41,7 +41,17 @@ app.get('/health', (req, res) => {
 
 // Routes
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
-app.use('/cake', cakesRoutes);
+
+// Preferred versioned API route
+app.use('/api/v1/cake', cakesRoutes);
+
+// Backward-compatible legacy route (to be deprecated in a future major version)
+app.use('/cake', (req, res, next) => {
+    res.setHeader('Deprecation', 'true');
+    res.setHeader('Sunset', 'Wed, 01 Jan 2027 00:00:00 GMT');
+    res.setHeader('Link', '</api/v1/cake>; rel="successor-version"');
+    next();
+}, cakesRoutes);
 
 app.use((req, res) => {
     res.status(404).json({ status: 404, success: false, error: 'Route not found' });

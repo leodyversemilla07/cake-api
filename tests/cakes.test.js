@@ -248,6 +248,32 @@ describe('Cakes API', () => {
         });
     });
 
+    describe('API versioning and compatibility', () => {
+        test('should support versioned route /api/v1/cake', async () => {
+            await runQuery("INSERT INTO cakes (name, description, flavor, price, is_available) VALUES (?, ?, ?, ?, ?)",
+                ['Versioned Cake', 'Served from v1 route', 'Chocolate', 30.00, true]);
+
+            const res = await request(app).get('/api/v1/cake');
+            expect(res.statusCode).toEqual(200);
+            expect(res.body.success).toBe(true);
+            expect(Array.isArray(res.body.data)).toBe(true);
+            expect(res.body.data.length).toBe(1);
+            expect(res.body.data[0].name).toBe('Versioned Cake');
+        });
+
+        test('should keep /cake working with deprecation headers', async () => {
+            await runQuery("INSERT INTO cakes (name, description, flavor, price, is_available) VALUES (?, ?, ?, ?, ?)",
+                ['Legacy Cake', 'Served from legacy route', 'Vanilla', 25.00, true]);
+
+            const res = await request(app).get('/cake');
+            expect(res.statusCode).toEqual(200);
+            expect(res.body.success).toBe(true);
+            expect(res.headers.deprecation).toBe('true');
+            expect(res.headers.sunset).toBe('Wed, 01 Jan 2027 00:00:00 GMT');
+            expect(res.headers.link).toContain('</api/v1/cake>; rel="successor-version"');
+        });
+    });
+
     describe('Misc routes', () => {
         test('should expose a health endpoint', async () => {
             const res = await request(app).get('/health');
@@ -259,6 +285,7 @@ describe('Cakes API', () => {
         test('should return a JSON 404 for unknown routes', async () => {
             const res = await request(app).get('/missing');
             expect(res.statusCode).toEqual(404);
+            expect(res.body.success).toBe(false);
             expect(res.body.error).toBe('Route not found');
         });
     });

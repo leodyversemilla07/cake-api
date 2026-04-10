@@ -82,7 +82,13 @@ Ensures the `cakes` table exists without starting the HTTP server.
 
 ## API Overview
 
-Base URL:
+Base URL (preferred):
+
+```text
+http://localhost:3000/api/v1
+```
+
+Backward-compatible legacy base URL (deprecated):
 
 ```text
 http://localhost:3000
@@ -144,7 +150,8 @@ Example response:
 
 ### List All Cakes
 
-`GET /cake`
+Preferred: `GET /api/v1/cake`
+Legacy (deprecated): `GET /cake`
 
 Example response:
 
@@ -169,12 +176,13 @@ Returns an empty array when no cakes exist.
 
 ### Get Cake by ID
 
-`GET /cake/:id`
+Preferred: `GET /api/v1/cake/:id`
+Legacy (deprecated): `GET /cake/:id`
 
 Example:
 
 ```bash
-curl http://localhost:3000/cake/1
+curl http://localhost:3000/api/v1/cake/1
 ```
 
 If the ID is invalid, the API returns `400`.
@@ -183,14 +191,15 @@ If no cake exists for that ID, the API returns `404`.
 
 ### Search Cakes
 
-`GET /cake/search?q=<term>`
+Preferred: `GET /api/v1/cake/search?q=<term>`
+Legacy (deprecated): `GET /cake/search?q=<term>`
 
 Searches across `name`, `flavor`, and `description`.
 
 Example:
 
 ```bash
-curl "http://localhost:3000/cake/search?q=chocolate"
+curl "http://localhost:3000/api/v1/cake/search?q=chocolate"
 ```
 
 If `q` is missing or blank, the API returns `400`.
@@ -199,12 +208,13 @@ If nothing matches, the API returns `200` with `data: []`.
 
 ### Create Cake
 
-`POST /cake`
+Preferred: `POST /api/v1/cake`
+Legacy (deprecated): `POST /cake`
 
 Example request:
 
 ```bash
-curl -X POST http://localhost:3000/cake \
+curl -X POST http://localhost:3000/api/v1/cake \
   -H "Content-Type: application/json" \
   -d "{\"name\":\"Strawberry Shortcake\",\"description\":\"A soft sponge cake with fresh strawberries\",\"flavor\":\"Strawberry\",\"price\":8,\"is_available\":true}"
 ```
@@ -225,14 +235,15 @@ Returns `201` with the created record.
 
 ### Update Cake
 
-`PATCH /cake/:id`
+Preferred: `PATCH /api/v1/cake/:id`
+Legacy (deprecated): `PATCH /cake/:id`
 
 Supports partial updates. Send one or more valid fields.
 
 Example request:
 
 ```bash
-curl -X PATCH http://localhost:3000/cake/1 \
+curl -X PATCH http://localhost:3000/api/v1/cake/1 \
   -H "Content-Type: application/json" \
   -d "{\"price\":9.5,\"is_available\":false}"
 ```
@@ -243,12 +254,13 @@ If the cake does not exist, the API returns `404`.
 
 ### Delete Cake
 
-`DELETE /cake/:id`
+Preferred: `DELETE /api/v1/cake/:id`
+Legacy (deprecated): `DELETE /cake/:id`
 
 Example request:
 
 ```bash
-curl -X DELETE http://localhost:3000/cake/1
+curl -X DELETE http://localhost:3000/api/v1/cake/1
 ```
 
 Example response:
@@ -269,8 +281,8 @@ Example response:
 - `name`, `description`, and `flavor` must be non-empty strings.
 - `price` must be a non-negative number.
 - `is_available` must be a boolean.
-- `POST /cake` requires all cake fields.
-- `PATCH /cake/:id` requires at least one valid field.
+- `POST /api/v1/cake` (and legacy `POST /cake`) requires all cake fields.
+- `PATCH /api/v1/cake/:id` (and legacy `PATCH /cake/:id`) requires at least one valid field.
 
 ## Project Structure
 
