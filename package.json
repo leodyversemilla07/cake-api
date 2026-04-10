@@ -5,7 +5,8 @@
   "main": "app.js",
   "scripts": {
     "start": "node app.js",
-    "test": "jest"
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "engines": {
     "node": ">=22"
@@ -16,7 +17,7 @@
     "sqlite",
     "rest-api",
     "swagger",
-    "jest"
+    "vitest"
   ],
   "author": "",
   "license": "ISC",
@@ -33,7 +34,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
-    "jest": "^30.2.0",
-    "supertest": "^7.1.4"
+    "supertest": "^7.1.4",
+    "vitest": "^4.1.4"
   }
 }

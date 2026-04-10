@@ -33,14 +33,16 @@ describe('Cakes API', () => {
         await runQuery('DELETE FROM cakes');
     });
 
-    afterAll((done) => {
-        db.close((err) => {
-            if (err) {
-                console.error(err.message);
-                done(err);
-            } else {
-                done();
-            }
+    afterAll(async () => {
+        await new Promise((resolve, reject) => {
+            db.close((err) => {
+                if (err) {
+                    console.error(err.message);
+                    reject(err);
+                } else {
+                    resolve();
+                }
+            });
         });
     });
 

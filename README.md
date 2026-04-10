@@ -9,7 +9,7 @@ The service exposes JSON endpoints for creating, listing, searching, updating, a
 - Node.js 22+
 - Express
 - SQLite via Node's built-in `node:sqlite`
-- Jest + Supertest
+- Vitest + Supertest
 
 ## Requirements
 
