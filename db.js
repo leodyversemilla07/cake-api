@@ -1,7 +1,10 @@
 const { DatabaseSync } = require('node:sqlite');
 const path = require('path');
 
-const dbPath = path.resolve(__dirname, 'cakes.db');
+const configuredDbPath = process.env.DB_PATH && process.env.DB_PATH.trim();
+const dbPath = configuredDbPath
+    ? path.resolve(process.cwd(), configuredDbPath)
+    : path.resolve(__dirname, 'cakes.db');
 
 const createTableSql = `CREATE TABLE IF NOT EXISTS cakes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

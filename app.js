@@ -1,7 +1,10 @@
+require('dotenv').config({ quiet: true });
+
 const express = require('express');
 const cors = require('cors');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
+const morgan = require('morgan');
 const swaggerUi = require('swagger-ui-express');
 const swaggerSpec = require('./swagger');
 const cakesRoutes = require('./routes/cakes.routes');
@@ -21,6 +24,11 @@ const limiter = rateLimit({
 app.use(limiter);
 
 app.use(cors());
+
+if (process.env.NODE_ENV !== 'production') {
+    app.use(morgan('dev'));
+}
+
 app.use(express.json());
 
 app.get('/health', (req, res) => {
