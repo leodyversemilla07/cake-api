@@ -2,9 +2,9 @@
   "name": "cake-api",
   "version": "1.0.0",
   "description": "A lightweight REST API for managing cakes with Express and SQLite.",
-  "main": "app.js",
+  "main": "src/app.js",
   "scripts": {
-    "start": "node app.js",
+    "start": "node src/app.js",
     "test": "vitest run",
     "test:watch": "vitest",
     "lint": "biome check .",

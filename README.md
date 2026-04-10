@@ -75,7 +75,7 @@ npm test
 Runs the test suite.
 
 ```bash
-node table.js
+node src/table.js
 ```
 
 Ensures the `cakes` table exists without starting the HTTP server.
@@ -288,13 +288,15 @@ Example response:
 
 ```text
 .
-|-- app.js
-|-- db.js
-|-- table.js
-|-- controllers/
-|   `-- cakes.controller.js
-|-- routes/
-|   `-- cakes.routes.js
+|-- src/
+|   |-- app.js
+|   |-- db.js
+|   |-- swagger.js
+|   |-- table.js
+|   |-- controllers/
+|   |   `-- cakes.controller.js
+|   `-- routes/
+|       `-- cakes.routes.js
 `-- tests/
     `-- cakes.test.js
 ```

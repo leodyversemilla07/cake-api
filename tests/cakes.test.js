@@ -1,6 +1,6 @@
 const request = require('supertest');
-const app = require('../app');
-const db = require('../db');
+const app = require('../src/app');
+const db = require('../src/db');
 
 // Helper function to run database queries within tests
 const runQuery = (query, params = []) => {
