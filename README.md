@@ -26,19 +26,39 @@ Node 22+ is required because this project uses the built-in `node:sqlite` module
 npm install
 ```
 
-2. Start the API:
+2. (Optional) Configure environment variables:
+
+```bash
+cp .env.example .env
+```
+
+3. Start the API:
 
 ```bash
 npm start
 ```
 
-3. Open the API at:
+4. Open the API at:
 
 ```text
 http://localhost:3000
 ```
 
 The database file is created automatically on startup, and the `cakes` table is ensured automatically as well.
+
+## Configuration
+
+The app supports the following environment variables:
+
+- `PORT` (default: `3000`) - HTTP server port
+- `DB_PATH` (default: `./cakes.db`) - SQLite database file path
+
+Examples:
+
+```bash
+PORT=4000 npm start
+DB_PATH=./data/cakes.db npm start
+```
 
 ## Available Scripts
 

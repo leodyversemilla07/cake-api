@@ -7,7 +7,17 @@
     "start": "node app.js",
     "test": "jest"
   },
-  "keywords": [],
+  "engines": {
+    "node": ">=22"
+  },
+  "keywords": [
+    "nodejs",
+    "express",
+    "sqlite",
+    "rest-api",
+    "swagger",
+    "jest"
+  ],
   "author": "",
   "license": "ISC",
   "type": "commonjs",
@@ -16,6 +26,7 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.3.1",
     "helmet": "^8.1.0",
+    "morgan": "^1.10.0",
     "swagger-jsdoc": "^6.2.8",
     "swagger-ui-express": "^5.0.1",
     "zod": "^4.3.6"
