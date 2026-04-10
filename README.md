@@ -23,7 +23,7 @@ Node 22+ is required because this project uses the built-in `node:sqlite` module
 1. Install dependencies:
 
 ```bash
-npm install
+npm ci
 ```
 
 2. (Optional) Configure environment variables:
