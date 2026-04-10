@@ -4,291 +4,297 @@ const db = require('../db');
 
 // Helper function to run database queries within tests
 const runQuery = (query, params = []) => {
-    return new Promise((resolve, reject) => {
-        db.run(query, params, function(err) {
-            if (err) reject(err);
-            resolve(this);
-        });
+  return new Promise((resolve, reject) => {
+    db.run(query, params, function (err) {
+      if (err) reject(err);
+      resolve(this);
     });
+  });
 };
 
 const getQuery = (query, params = []) => {
-    return new Promise((resolve, reject) => {
-        db.get(query, params, (err, row) => {
-            if (err) reject(err);
-            resolve(row);
-        });
+  return new Promise((resolve, reject) => {
+    db.get(query, params, (err, row) => {
+      if (err) reject(err);
+      resolve(row);
     });
+  });
 };
 
 describe('Cakes API', () => {
+  beforeAll(async () => {
+    await runQuery(db.createTableSql);
+  });
 
-    beforeAll(async () => {
-        await runQuery(db.createTableSql);
+  // Clean the database before and after each test
+  beforeEach(async () => {
+    await runQuery('DELETE FROM cakes');
+  });
+
+  afterAll(async () => {
+    await new Promise((resolve, reject) => {
+      db.close((err) => {
+        if (err) {
+          console.error(err.message);
+          reject(err);
+        } else {
+          resolve();
+        }
+      });
+    });
+  });
+
+  describe('POST /cake', () => {
+    test('should create a new cake', async () => {
+      const newCake = {
+        name: 'Test Cake',
+        description: 'A delicious test cake',
+        flavor: 'Vanilla',
+        price: 10.0,
+        is_available: true,
+      };
+
+      const res = await request(app).post('/cake').send(newCake);
+
+      expect(res.statusCode).toEqual(201);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toHaveProperty('id');
+      expect(res.body.data.is_available).toBe(true);
+
+      // Verify the cake was actually inserted into the DB
+      const cakeInDb = await getQuery('SELECT * FROM cakes WHERE id = ?', [res.body.data.id]);
+      expect(cakeInDb.name).toBe(newCake.name);
     });
 
+    test('should fail with missing fields', async () => {
+      const res = await request(app).post('/cake').send({ name: 'Incomplete Cake' });
 
-    // Clean the database before and after each test
+      expect(res.statusCode).toEqual(400);
+      expect(res.body.success).toBe(false);
+    });
+
+    test('should fail when price is negative', async () => {
+      const res = await request(app).post('/cake').send({
+        name: 'Invalid Cake',
+        description: 'Bad data',
+        flavor: 'Chocolate',
+        price: -1,
+        is_available: true,
+      });
+
+      expect(res.statusCode).toEqual(400);
+      expect(res.body.error).toContain('Price must be a non-negative number');
+    });
+  });
+
+  describe('GET /cake', () => {
+    test('should list all cakes', async () => {
+      // Add a cake to the DB first
+      await runQuery(
+        'INSERT INTO cakes (name, description, flavor, price, is_available) VALUES (?, ?, ?, ?, ?)',
+        ['Chocolate Cake', 'Rich and moist', 'Chocolate', 20.0, true]
+      );
+
+      const res = await request(app).get('/cake');
+      expect(res.statusCode).toEqual(200);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data.length).toBe(1);
+      expect(res.body.data[0].name).toBe('Chocolate Cake');
+      expect(res.body.data[0].is_available).toBe(true);
+    });
+
+    test('should return an empty list if no cakes are found', async () => {
+      const res = await request(app).get('/cake');
+      expect(res.statusCode).toEqual(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toEqual([]);
+    });
+  });
+
+  describe('GET /cake/:id', () => {
+    test('should get a cake by id', async () => {
+      const result = await runQuery(
+        'INSERT INTO cakes (name, description, flavor, price, is_available) VALUES (?, ?, ?, ?, ?)',
+        ['Vanilla Cake', 'Simple and sweet', 'Vanilla', 15.0, true]
+      );
+      const cakeId = result.lastID;
+
+      const res = await request(app).get(`/cake/${cakeId}`);
+      expect(res.statusCode).toEqual(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.id).toEqual(cakeId);
+    });
+
+    test('should return 404 for non-existent cake', async () => {
+      const res = await request(app).get('/cake/999999');
+      expect(res.statusCode).toEqual(404);
+      expect(res.body.success).toBe(false);
+    });
+
+    test('should validate that id is numeric', async () => {
+      const res = await request(app).get('/cake/not-a-number');
+      expect(res.statusCode).toEqual(400);
+      expect(res.body.error).toBe('Cake id must be a positive integer');
+    });
+  });
+
+  describe('GET /cake/search', () => {
     beforeEach(async () => {
-        await runQuery('DELETE FROM cakes');
+      // Add some cakes to the DB first
+      await runQuery(
+        'INSERT INTO cakes (name, description, flavor, price, is_available) VALUES (?, ?, ?, ?, ?)',
+        ['Chocolate Cake', 'Rich and moist', 'Chocolate', 20.0, true]
+      );
+      await runQuery(
+        'INSERT INTO cakes (name, description, flavor, price, is_available) VALUES (?, ?, ?, ?, ?)',
+        ['Vanilla Cake', 'Simple and sweet', 'Vanilla', 15.0, true]
+      );
+      await runQuery(
+        'INSERT INTO cakes (name, description, flavor, price, is_available) VALUES (?, ?, ?, ?, ?)',
+        ['Carrot Cake', 'Spiced and nutty', 'Carrot', 22.0, true]
+      );
     });
 
-    afterAll(async () => {
-        await new Promise((resolve, reject) => {
-            db.close((err) => {
-                if (err) {
-                    console.error(err.message);
-                    reject(err);
-                } else {
-                    resolve();
-                }
-            });
-        });
+    test('should find cakes by name', async () => {
+      const res = await request(app).get('/cake/search?q=Chocolate');
+      expect(res.statusCode).toEqual(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.length).toBe(1);
+      expect(res.body.data[0].name).toBe('Chocolate Cake');
     });
 
-    describe('POST /cake', () => {
-        test('should create a new cake', async () => {
-            const newCake = {
-                name: 'Test Cake',
-                description: 'A delicious test cake',
-                flavor: 'Vanilla',
-                price: 10.00,
-                is_available: true
-            };
-
-            const res = await request(app)
-                .post('/cake')
-                .send(newCake);
-
-            expect(res.statusCode).toEqual(201);
-            expect(res.body.success).toBe(true);
-            expect(res.body.data).toHaveProperty('id');
-            expect(res.body.data.is_available).toBe(true);
-
-            // Verify the cake was actually inserted into the DB
-            const cakeInDb = await getQuery("SELECT * FROM cakes WHERE id = ?", [res.body.data.id]);
-            expect(cakeInDb.name).toBe(newCake.name);
-        });
-
-        test('should fail with missing fields', async () => {
-            const res = await request(app)
-                .post('/cake')
-                .send({ name: 'Incomplete Cake' });
-
-            expect(res.statusCode).toEqual(400);
-            expect(res.body.success).toBe(false);
-        });
-
-        test('should fail when price is negative', async () => {
-            const res = await request(app)
-                .post('/cake')
-                .send({
-                    name: 'Invalid Cake',
-                    description: 'Bad data',
-                    flavor: 'Chocolate',
-                    price: -1,
-                    is_available: true
-                });
-
-            expect(res.statusCode).toEqual(400);
-            expect(res.body.error).toContain('Price must be a non-negative number');
-        });
+    test('should find cakes by flavor', async () => {
+      const res = await request(app).get('/cake/search?q=Vanilla');
+      expect(res.statusCode).toEqual(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.length).toBe(1);
+      expect(res.body.data[0].flavor).toBe('Vanilla');
     });
 
-    describe('GET /cake', () => {
-        test('should list all cakes', async () => {
-            // Add a cake to the DB first
-            await runQuery("INSERT INTO cakes (name, description, flavor, price, is_available) VALUES (?, ?, ?, ?, ?)",
-                ['Chocolate Cake', 'Rich and moist', 'Chocolate', 20.00, true]);
-
-            const res = await request(app).get('/cake');
-            expect(res.statusCode).toEqual(200);
-            expect(res.body.success).toBe(true);
-            expect(Array.isArray(res.body.data)).toBe(true);
-            expect(res.body.data.length).toBe(1);
-            expect(res.body.data[0].name).toBe('Chocolate Cake');
-            expect(res.body.data[0].is_available).toBe(true);
-        });
-
-        test('should return an empty list if no cakes are found', async () => {
-            const res = await request(app).get('/cake');
-            expect(res.statusCode).toEqual(200);
-            expect(res.body.success).toBe(true);
-            expect(res.body.data).toEqual([]);
-        });
+    test('should return an empty list for no matching cakes', async () => {
+      const res = await request(app).get('/cake/search?q=nonexistent');
+      expect(res.statusCode).toEqual(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data).toEqual([]);
     });
 
-
-    describe('GET /cake/:id', () => {
-        test('should get a cake by id', async () => {
-            const result = await runQuery("INSERT INTO cakes (name, description, flavor, price, is_available) VALUES (?, ?, ?, ?, ?)",
-                ['Vanilla Cake', 'Simple and sweet', 'Vanilla', 15.00, true]);
-            const cakeId = result.lastID;
-
-            const res = await request(app).get(`/cake/${cakeId}`);
-            expect(res.statusCode).toEqual(200);
-            expect(res.body.success).toBe(true);
-            expect(res.body.data.id).toEqual(cakeId);
-        });
-
-        test('should return 404 for non-existent cake', async () => {
-            const res = await request(app).get('/cake/999999');
-            expect(res.statusCode).toEqual(404);
-            expect(res.body.success).toBe(false);
-        });
-
-        test('should validate that id is numeric', async () => {
-            const res = await request(app).get('/cake/not-a-number');
-            expect(res.statusCode).toEqual(400);
-            expect(res.body.error).toBe('Cake id must be a positive integer');
-        });
+    test('should return 400 if query parameter is missing', async () => {
+      const res = await request(app).get('/cake/search');
+      expect(res.statusCode).toEqual(400);
+      expect(res.body.success).toBe(false);
     });
 
-    describe('GET /cake/search', () => {
-        beforeEach(async () => {
-            // Add some cakes to the DB first
-            await runQuery("INSERT INTO cakes (name, description, flavor, price, is_available) VALUES (?, ?, ?, ?, ?)",
-                ['Chocolate Cake', 'Rich and moist', 'Chocolate', 20.00, true]);
-            await runQuery("INSERT INTO cakes (name, description, flavor, price, is_available) VALUES (?, ?, ?, ?, ?)",
-                ['Vanilla Cake', 'Simple and sweet', 'Vanilla', 15.00, true]);
-            await runQuery("INSERT INTO cakes (name, description, flavor, price, is_available) VALUES (?, ?, ?, ?, ?)",
-                ['Carrot Cake', 'Spiced and nutty', 'Carrot', 22.00, true]);
-        });
+    test('should search the description field', async () => {
+      const res = await request(app).get('/cake/search?q=nutty');
+      expect(res.statusCode).toEqual(200);
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0].name).toBe('Carrot Cake');
+    });
+  });
 
-        test('should find cakes by name', async () => {
-            const res = await request(app).get('/cake/search?q=Chocolate');
-            expect(res.statusCode).toEqual(200);
-            expect(res.body.success).toBe(true);
-            expect(res.body.data.length).toBe(1);
-            expect(res.body.data[0].name).toBe('Chocolate Cake');
-        });
+  describe('PATCH /cake/:id', () => {
+    test('should update a cake', async () => {
+      const result = await runQuery(
+        'INSERT INTO cakes (name, description, flavor, price, is_available) VALUES (?, ?, ?, ?, ?)',
+        ['Lemon Tart', 'Zesty and refreshing', 'Lemon', 18.0, true]
+      );
+      const cakeId = result.lastID;
 
-        test('should find cakes by flavor', async () => {
-            const res = await request(app).get('/cake/search?q=Vanilla');
-            expect(res.statusCode).toEqual(200);
-            expect(res.body.success).toBe(true);
-            expect(res.body.data.length).toBe(1);
-            expect(res.body.data[0].flavor).toBe('Vanilla');
-        });
+      const updates = { price: 20.0 };
 
-        test('should return an empty list for no matching cakes', async () => {
-            const res = await request(app).get('/cake/search?q=nonexistent');
-            expect(res.statusCode).toEqual(200);
-            expect(res.body.success).toBe(true);
-            expect(res.body.data).toEqual([]);
-        });
+      const res = await request(app).patch(`/cake/${cakeId}`).send(updates);
 
-        test('should return 400 if query parameter is missing', async () => {
-            const res = await request(app).get('/cake/search');
-            expect(res.statusCode).toEqual(400);
-            expect(res.body.success).toBe(false);
-        });
-
-        test('should search the description field', async () => {
-            const res = await request(app).get('/cake/search?q=nutty');
-            expect(res.statusCode).toEqual(200);
-            expect(res.body.data).toHaveLength(1);
-            expect(res.body.data[0].name).toBe('Carrot Cake');
-        });
+      expect(res.statusCode).toEqual(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.price).toEqual(20.0);
     });
 
-
-    describe('PATCH /cake/:id', () => {
-        test('should update a cake', async () => {
-            const result = await runQuery("INSERT INTO cakes (name, description, flavor, price, is_available) VALUES (?, ?, ?, ?, ?)",
-                ['Lemon Tart', 'Zesty and refreshing', 'Lemon', 18.00, true]);
-            const cakeId = result.lastID;
-
-            const updates = { price: 20.00 };
-
-            const res = await request(app)
-                .patch(`/cake/${cakeId}`)
-                .send(updates);
-
-            expect(res.statusCode).toEqual(200);
-            expect(res.body.success).toBe(true);
-            expect(res.body.data.price).toEqual(20.00);
-        });
-
-        test('should return 404 for non-existent cake', async () => {
-            const res = await request(app).patch('/cake/999999').send({ price: 10 });
-            expect(res.statusCode).toEqual(404);
-        });
-
-        test('should reject invalid boolean updates', async () => {
-            const result = await runQuery("INSERT INTO cakes (name, description, flavor, price, is_available) VALUES (?, ?, ?, ?, ?)",
-                ['Lemon Tart', 'Zesty and refreshing', 'Lemon', 18.00, true]);
-            const cakeId = result.lastID;
-
-            const res = await request(app)
-                .patch(`/cake/${cakeId}`)
-                .send({ is_available: 'yes' });
-
-            expect(res.statusCode).toEqual(400);
-            expect(res.body.error).toContain('expected boolean');
-        });
+    test('should return 404 for non-existent cake', async () => {
+      const res = await request(app).patch('/cake/999999').send({ price: 10 });
+      expect(res.statusCode).toEqual(404);
     });
 
-    describe('DELETE /cake/:id', () => {
-        test('should delete a cake', async () => {
-            const result = await runQuery("INSERT INTO cakes (name, description, flavor, price, is_available) VALUES (?, ?, ?, ?, ?)",
-                ['Carrot Cake', 'Spiced and nutty', 'Carrot', 22.00, true]);
-            const cakeId = result.lastID;
+    test('should reject invalid boolean updates', async () => {
+      const result = await runQuery(
+        'INSERT INTO cakes (name, description, flavor, price, is_available) VALUES (?, ?, ?, ?, ?)',
+        ['Lemon Tart', 'Zesty and refreshing', 'Lemon', 18.0, true]
+      );
+      const cakeId = result.lastID;
 
-            const res = await request(app).delete(`/cake/${cakeId}`);
-            expect(res.statusCode).toEqual(200);
-            expect(res.body.success).toBe(true);
+      const res = await request(app).patch(`/cake/${cakeId}`).send({ is_available: 'yes' });
 
-            // Verify it's gone
-            const res2 = await request(app).get(`/cake/${cakeId}`);
-            expect(res2.statusCode).toEqual(404);
-        });
+      expect(res.statusCode).toEqual(400);
+      expect(res.body.error).toContain('expected boolean');
+    });
+  });
 
-        test('should return 404 for non-existent cake', async () => {
-            const res = await request(app).delete('/cake/999999');
-            expect(res.statusCode).toEqual(404);
-        });
+  describe('DELETE /cake/:id', () => {
+    test('should delete a cake', async () => {
+      const result = await runQuery(
+        'INSERT INTO cakes (name, description, flavor, price, is_available) VALUES (?, ?, ?, ?, ?)',
+        ['Carrot Cake', 'Spiced and nutty', 'Carrot', 22.0, true]
+      );
+      const cakeId = result.lastID;
+
+      const res = await request(app).delete(`/cake/${cakeId}`);
+      expect(res.statusCode).toEqual(200);
+      expect(res.body.success).toBe(true);
+
+      // Verify it's gone
+      const res2 = await request(app).get(`/cake/${cakeId}`);
+      expect(res2.statusCode).toEqual(404);
     });
 
-    describe('API versioning and compatibility', () => {
-        test('should support versioned route /api/v1/cake', async () => {
-            await runQuery("INSERT INTO cakes (name, description, flavor, price, is_available) VALUES (?, ?, ?, ?, ?)",
-                ['Versioned Cake', 'Served from v1 route', 'Chocolate', 30.00, true]);
+    test('should return 404 for non-existent cake', async () => {
+      const res = await request(app).delete('/cake/999999');
+      expect(res.statusCode).toEqual(404);
+    });
+  });
 
-            const res = await request(app).get('/api/v1/cake');
-            expect(res.statusCode).toEqual(200);
-            expect(res.body.success).toBe(true);
-            expect(Array.isArray(res.body.data)).toBe(true);
-            expect(res.body.data.length).toBe(1);
-            expect(res.body.data[0].name).toBe('Versioned Cake');
-        });
+  describe('API versioning and compatibility', () => {
+    test('should support versioned route /api/v1/cake', async () => {
+      await runQuery(
+        'INSERT INTO cakes (name, description, flavor, price, is_available) VALUES (?, ?, ?, ?, ?)',
+        ['Versioned Cake', 'Served from v1 route', 'Chocolate', 30.0, true]
+      );
 
-        test('should keep /cake working with deprecation headers', async () => {
-            await runQuery("INSERT INTO cakes (name, description, flavor, price, is_available) VALUES (?, ?, ?, ?, ?)",
-                ['Legacy Cake', 'Served from legacy route', 'Vanilla', 25.00, true]);
-
-            const res = await request(app).get('/cake');
-            expect(res.statusCode).toEqual(200);
-            expect(res.body.success).toBe(true);
-            expect(res.headers.deprecation).toBe('true');
-            expect(res.headers.sunset).toBe('Wed, 01 Jan 2027 00:00:00 GMT');
-            expect(res.headers.link).toContain('</api/v1/cake>; rel="successor-version"');
-        });
+      const res = await request(app).get('/api/v1/cake');
+      expect(res.statusCode).toEqual(200);
+      expect(res.body.success).toBe(true);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data.length).toBe(1);
+      expect(res.body.data[0].name).toBe('Versioned Cake');
     });
 
-    describe('Misc routes', () => {
-        test('should expose a health endpoint', async () => {
-            const res = await request(app).get('/health');
-            expect(res.statusCode).toEqual(200);
-            expect(res.body.success).toBe(true);
-            expect(res.body.data.service).toBe('cake-api');
-        });
+    test('should keep /cake working with deprecation headers', async () => {
+      await runQuery(
+        'INSERT INTO cakes (name, description, flavor, price, is_available) VALUES (?, ?, ?, ?, ?)',
+        ['Legacy Cake', 'Served from legacy route', 'Vanilla', 25.0, true]
+      );
 
-        test('should return a JSON 404 for unknown routes', async () => {
-            const res = await request(app).get('/missing');
-            expect(res.statusCode).toEqual(404);
-            expect(res.body.success).toBe(false);
-            expect(res.body.error).toBe('Route not found');
-        });
+      const res = await request(app).get('/cake');
+      expect(res.statusCode).toEqual(200);
+      expect(res.body.success).toBe(true);
+      expect(res.headers.deprecation).toBe('true');
+      expect(res.headers.sunset).toBe('Wed, 01 Jan 2027 00:00:00 GMT');
+      expect(res.headers.link).toContain('</api/v1/cake>; rel="successor-version"');
     });
+  });
+
+  describe('Misc routes', () => {
+    test('should expose a health endpoint', async () => {
+      const res = await request(app).get('/health');
+      expect(res.statusCode).toEqual(200);
+      expect(res.body.success).toBe(true);
+      expect(res.body.data.service).toBe('cake-api');
+    });
+
+    test('should return a JSON 404 for unknown routes', async () => {
+      const res = await request(app).get('/missing');
+      expect(res.statusCode).toEqual(404);
+      expect(res.body.success).toBe(false);
+      expect(res.body.error).toBe('Route not found');
+    });
+  });
 });

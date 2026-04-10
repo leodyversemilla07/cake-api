@@ -16,27 +16,27 @@ const PORT = Number(process.env.PORT) || 3000;
 app.use(helmet({ contentSecurityPolicy: false })); // Disabled CSP to allow Swagger UI scripts
 
 const limiter = rateLimit({
-    windowMs: 15 * 60 * 1000, // 15 minutes
-    max: 100, // limit each IP to 100 requests per windowMs
-    standardHeaders: true,
-    legacyHeaders: false,
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 100, // limit each IP to 100 requests per windowMs
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 app.use(limiter);
 
 app.use(cors());
 
 if (process.env.NODE_ENV !== 'production') {
-    app.use(morgan('dev'));
+  app.use(morgan('dev'));
 }
 
 app.use(express.json());
 
-app.get('/health', (req, res) => {
-    res.status(200).json({
-        status: 200,
-        success: true,
-        data: { service: 'cake-api', uptime: process.uptime() }
-    });
+app.get('/health', (_req, res) => {
+  res.status(200).json({
+    status: 200,
+    success: true,
+    data: { service: 'cake-api', uptime: process.uptime() },
+  });
 });
 
 // Routes
@@ -46,27 +46,31 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec));
 app.use('/api/v1/cake', cakesRoutes);
 
 // Backward-compatible legacy route (to be deprecated in a future major version)
-app.use('/cake', (req, res, next) => {
+app.use(
+  '/cake',
+  (_req, res, next) => {
     res.setHeader('Deprecation', 'true');
     res.setHeader('Sunset', 'Wed, 01 Jan 2027 00:00:00 GMT');
     res.setHeader('Link', '</api/v1/cake>; rel="successor-version"');
     next();
-}, cakesRoutes);
+  },
+  cakesRoutes
+);
 
-app.use((req, res) => {
-    res.status(404).json({ status: 404, success: false, error: 'Route not found' });
+app.use((_req, res) => {
+  res.status(404).json({ status: 404, success: false, error: 'Route not found' });
 });
 
 // Error handling middleware
-app.use((err, req, res, next) => {
-    console.error(err.stack);
-    res.status(500).json({ status: 500, success: false, error: 'Internal Server Error' });
+app.use((err, _req, res, _next) => {
+  console.error(err.stack);
+  res.status(500).json({ status: 500, success: false, error: 'Internal Server Error' });
 });
 
 if (require.main === module) {
-    app.listen(PORT, () => {
-        console.log(`The server is running on http://localhost:${PORT}`);
-    });
+  app.listen(PORT, () => {
+    console.log(`The server is running on http://localhost:${PORT}`);
+  });
 }
 
 module.exports = app;

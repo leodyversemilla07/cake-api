@@ -4,6 +4,6 @@ module.exports = defineConfig({
   test: {
     globals: true,
     environment: 'node',
-    include: ['tests/**/*.test.js']
-  }
+    include: ['tests/**/*.test.js'],
+  },
 });

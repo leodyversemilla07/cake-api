@@ -6,7 +6,10 @@
   "scripts": {
     "start": "node app.js",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "lint": "biome check .",
+    "format": "biome format --write .",
+    "format:check": "biome format ."
   },
   "engines": {
     "node": ">=22"
@@ -34,6 +37,7 @@
     "zod": "^4.3.6"
   },
   "devDependencies": {
+    "@biomejs/biome": "^2.4.11",
     "supertest": "^7.1.4",
     "vitest": "^4.1.4"
   }

@@ -6,7 +6,7 @@ const options = {
     info: {
       title: 'Cake API',
       version: '1.0.0',
-      description: 'A lightweight REST API for managing cakes with Express and SQLite.'
+      description: 'A lightweight REST API for managing cakes with Express and SQLite.',
     },
     components: {
       schemas: {
@@ -16,42 +16,42 @@ const options = {
           properties: {
             id: {
               type: 'integer',
-              description: 'The auto-generated custom ID of the cake'
+              description: 'The auto-generated custom ID of the cake',
             },
             name: {
               type: 'string',
-              description: 'The name of the cake'
+              description: 'The name of the cake',
             },
             description: {
               type: 'string',
-              description: 'A detailed description of the cake'
+              description: 'A detailed description of the cake',
             },
             flavor: {
               type: 'string',
-              description: 'The main flavor of the cake'
+              description: 'The main flavor of the cake',
             },
             price: {
               type: 'number',
-              description: 'The price of the cake'
+              description: 'The price of the cake',
             },
             is_available: {
               type: 'boolean',
-              description: 'Whether the cake is currently available for order'
-            }
+              description: 'Whether the cake is currently available for order',
+            },
           },
           example: {
             id: 1,
             name: 'Chocolate Fudge Cake',
             description: 'Rich and moist chocolate cake with fudge frosting.',
             flavor: 'Chocolate',
-            price: 25.50,
-            is_available: true
-          }
-        }
-      }
-    }
+            price: 25.5,
+            is_available: true,
+          },
+        },
+      },
+    },
   },
-  apis: ['./routes/*.js']
+  apis: ['./routes/*.js'],
 };
 
 const swaggerSpec = swaggerJsdoc(options);
